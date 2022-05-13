@@ -1,0 +1,21 @@
+---
+
+- name: Run apt-get update
+  apt:
+    update_cache: yes
+
+- name: Run apt-get dist-upgrade
+  apt:
+    update_cache: yes
+    upgrade: dist
+
+
+- name: Install commonly used packages
+  apt:
+    pkg:
+      - iptables
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - apt-transport-https

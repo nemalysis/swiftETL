@@ -1,0 +1,13 @@
+---
+
+- name: create /root/.kube
+  file:
+    path: /root/.kube
+    state: directory
+
+- name: join cluster
+  shell: "{{ hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout'] }}"
+
+- name: print join cmd for debug purposes
+  debug:
+    var: hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout']

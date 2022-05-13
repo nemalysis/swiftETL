@@ -1,0 +1,26 @@
+---
+
+- name: Start Admin Console
+  hosts: kube_master
+  become: true
+
+  tasks:
+    - name: Create and print token
+      #kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+      shell: '{% raw %} export KUBECONFIG=/etc/kubernetes/admin.conf; kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}" {% endraw %}'
+      register: token
+    - name: Start Proxy
+      #export KUBECONFIG=/etc/kubernetes/admin.conf; kubectl proxy"
+      shell: '{% raw %} export KUBECONFIG=/etc/kubernetes/admin.conf; kubectl proxy & {% endraw %}'
+    - name: Print Token to user
+      debug:
+        msg: "{{token.stdout}}"
+        verbosity: 0
+    - name: Print Browswer Path to user
+      debug:
+        msg: "visit http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
+        verbosity: 0
+    - name: Run the following Command before
+      debug:
+        msg: ssh -L 8001:localhost:8001 root@{{ansible_host}} 'kubectl proxy'
+        verbosity: 0

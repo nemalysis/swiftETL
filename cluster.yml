@@ -1,0 +1,28 @@
+---
+
+- hosts: debians
+  become: true
+  roles:
+    - { role: debian-basics }
+    - { role: debian-docker }
+    - { role: debian-grubconfig }
+    - { role: debian-kubernetes }
+
+- hosts: kube_master_disabled
+  become: true
+  roles:
+    - { role: kube-master }
+
+# kindoff hacky - this should be handled in the kube-master role
+# however, this does not make the master/slave roles independent from one another
+# on the other hand - independence is broken at some point
+- hosts: kube_master_disabled
+  become: true
+  tasks:
+    - shell: kubeadm token create --print-join-command
+      register: kube_master_join_cmd
+
+- hosts: kube_slaves_disabled
+  become: true
+  roles:
+    - { role: kube-slave }

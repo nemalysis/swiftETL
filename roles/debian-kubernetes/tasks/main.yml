@@ -1,0 +1,32 @@
+---
+
+- name: Download Kubernetes Certificate
+  shell: "curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+
+- name: Add Kubernetes repos to apt
+  shell: "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | tee /etc/apt/sources.list.d/kubernetes.list"
+
+
+- name: Run apt-get update
+  apt:
+    update_cache: yes
+
+- name: Install Kubernetes
+  apt:
+    pkg:
+      - kubelet
+      - kubeadm
+      - kubectl
+
+- name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+  shell: |
+    swapoff -a
+
+- name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+
+
