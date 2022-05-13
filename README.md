@@ -4,6 +4,7 @@ At this point, this is just a working draft and in many ways not
 compatible with Ansible best practices.
 
 # HOWTO
+- Snapshot
 - Update ./inventory/testNodes.ini
     - User for now: root
     - Path to your private keys

@@ -1,32 +1,35 @@
 ---
 
-- name: init kubernetes cluster
-  shell: kubeadm init --pod-network-cidr=172.25.0.0/12 > /root/init.log 2> /root/init_error.log
+- name: Reenable plugin CRI
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    state: absent
+    line: 'disabled_plugins = ["cri"]'
+
+- name: Reenable plugin CRI part 2
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    state: present
+    line: disabled_plugins = []
+
+- name: Restart containerd
+  shell: systemctl restart containerd
 
 - name: create /root/.kube
   file:
     path: /root/.kube
     state: directory
 
-- name: copies admin config to /root/.kube/config
-  ansible.builtin.copy:
-    remote_src: yes
-    src: /etc/kubernetes/admin.conf
-    dest: /root/.kube/config
-    owner: root
-    group: root
-    mode: '0644'
-
-- name: Install network driver flannel
-  shell: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
-
-- name: Install dashboard
-  shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.4.0/aio/deploy/recommended.yaml
-
 - name: Create remote manifest directory
   file:
     path: /root/kube_manifests
     state: directory
+
+- name: Install k3s
+  shell: curl -sfL https://get.k3s.io | sh -s - --docker --node-ip={{ansible_host}}
+
+- name: Install Dashboard
+  shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.5.0/aio/deploy/recommended.yaml
 
 - name: Copy adminuser manifest
   ansible.builtin.copy:
@@ -35,12 +38,12 @@
 
 - name: Copy ClusterRoleBinding manifest
   ansible.builtin.copy:
-    src: library/kube_manifests/dashboard-clusterrolebinding.yaml
-    dest: /root/kube_manifests/dashboard-clusterrolebinding.yaml
+    src: library/kube_manifests/dashboard-adminuser-role-binding.yaml
+    dest: /root/kube_manifests/dashboard-adminuser-role-binding.yaml
 
 - name: Apply adminuser manifest
   shell: kubectl apply -f /root/kube_manifests/dashboard-adminuser.yaml
 
-- name: Apply clusterrolebinding manifest
-  shell: kubectl apply -f /root/kube_manifests/dashboard-clusterrolebinding.yaml
-    
+- name: Apply ClusterRoleBinding manifest
+  shell: kubectl apply -f /root/kube_manifests/dashboard-adminuser-role-binding.yaml
+

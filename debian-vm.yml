@@ -1,0 +1,6 @@
+---
+
+- hosts: debians
+  become: true
+  roles:
+    - { role: debian-vm }

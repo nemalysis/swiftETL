@@ -6,12 +6,10 @@
 
   tasks:
     - name: Create and print token
-      #kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
-      shell: '{% raw %} export KUBECONFIG=/etc/kubernetes/admin.conf; kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}" {% endraw %}'
+      shell: '{% raw %} kubectl -n kubernetes-dashboard describe secret admin-user-token | grep ^token {% endraw %}'
       register: token
     - name: Start Proxy
-      #export KUBECONFIG=/etc/kubernetes/admin.conf; kubectl proxy"
-      shell: '{% raw %} export KUBECONFIG=/etc/kubernetes/admin.conf; kubectl proxy & {% endraw %}'
+      shell: '{% raw %} kubectl proxy & {% endraw %}'
     - name: Print Token to user
       debug:
         msg: "{{token.stdout}}"

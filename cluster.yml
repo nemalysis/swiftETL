@@ -6,23 +6,22 @@
     - { role: debian-basics }
     - { role: debian-docker }
     - { role: debian-grubconfig }
-    - { role: debian-kubernetes }
+#    - { role: debian-kubernetes } disabled - because we will use k3s
 
-- hosts: kube_master_disabled
+- hosts: kube_master
   become: true
   roles:
     - { role: kube-master }
 
-# kindoff hacky - this should be handled in the kube-master role
-# however, this does not make the master/slave roles independent from one another
+# kindoff hacky
 # on the other hand - independence is broken at some point
-- hosts: kube_master_disabled
+- hosts: kube_master
   become: true
   tasks:
-    - shell: kubeadm token create --print-join-command
+    - shell: cat /var/lib/rancher/k3s/server/token 
       register: kube_master_join_cmd
 
-- hosts: kube_slaves_disabled
+- hosts: kube_slaves
   become: true
   roles:
     - { role: kube-slave }

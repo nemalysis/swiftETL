@@ -1,13 +1,28 @@
 ---
 
+- name: Reenable plugin CRI
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    state: absent
+    line: 'disabled_plugins = ["cri"]'
+
+- name: Reenable plugin CRI part 2
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    state: present
+    line: disabled_plugins = []
+
+- name: Restart containerd
+  shell: systemctl restart containerd
+
 - name: create /root/.kube
   file:
     path: /root/.kube
     state: directory
 
-- name: join cluster
-  shell: "{{ hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout'] }}"
-
-- name: print join cmd for debug purposes
+- name: print join token
   debug:
     var: hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout']
+
+- name: join cluster
+  shell: curl -sfL https://get.k3s.io | K3S_URL=https://{{hostvars[groups['kube_master'][0]]['ansible_host'] }}:6443 K3S_TOKEN={{hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout']}} sh -s - --docker --node-ip={{ansible_host}}
