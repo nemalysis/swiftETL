@@ -20,6 +20,13 @@
   tasks:
     - shell: cat /var/lib/rancher/k3s/server/token 
       register: kube_master_join_cmd
+    - name: Create and print token
+      shell: '{% raw %} kubectl -n kubernetes-dashboard describe secret admin-user-token | grep ^token {% endraw %}'
+      register: token
+    - name: Print Token to user
+      debug:
+        msg: "{{token.stdout}}"
+        verbosity: 0
 
 - hosts: kube_slaves
   become: true
