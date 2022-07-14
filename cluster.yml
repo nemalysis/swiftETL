@@ -27,6 +27,18 @@
       debug:
         msg: "{{token.stdout}}"
         verbosity: 0
+    - name: Copy Provisioning Scripts
+      copy:
+        src: ./library/provisioning
+        dest: /root
+    - name: make provision scripts executable
+      shell: chmod u+x /root/provisioning/*.sh
+    - name: install helm
+      shell: /root/provisioning/install_helm.sh
+    - name: install argo
+      shell: /root/provisioning/install_argo.sh
+    - name: open port for kubernetes-dashboard
+      shell: /root/provisioning/port_dashboard.sh
 
 - hosts: kube_slaves
   become: true
