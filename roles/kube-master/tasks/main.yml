@@ -41,9 +41,17 @@
     src: library/kube_manifests/dashboard-adminuser-role-binding.yaml
     dest: /root/kube_manifests/dashboard-adminuser-role-binding.yaml
 
+- name: Copy ClusterUser Token manifest
+  ansible.builtin.copy:
+    src: library/kube_manifests/dashboard-adminuser-token.yaml
+    dest: /root/kube_manifests/dashboard-adminuser-token.yaml
+
 - name: Apply adminuser manifest
   shell: kubectl apply -f /root/kube_manifests/dashboard-adminuser.yaml
 
 - name: Apply ClusterRoleBinding manifest
   shell: kubectl apply -f /root/kube_manifests/dashboard-adminuser-role-binding.yaml
+
+- name: Apply ClusterUser Token manifest
+  shell: kubectl apply -f /root/kube_manifests/dashboard-adminuser-token.yaml
 
