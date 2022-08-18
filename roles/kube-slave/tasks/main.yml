@@ -20,9 +20,20 @@
     path: /root/.kube
     state: directory
 
+- name: Copy Provisioning Scripts
+  copy:
+    src: ./library/provisioning
+    dest: /root
+
+- name: make provision scripts executable
+  shell: chmod u+x /root/provisioning/*.sh
+  
+- name: install cri-dockerd
+  shell: /root/provisioning/install_cri_dockerd.sh
+
 - name: print join token
   debug:
     var: hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout']
 
 - name: join cluster
-  shell: curl -sfL https://get.k3s.io | K3S_URL=https://{{hostvars[groups['kube_master'][0]]['ansible_host'] }}:6443 K3S_TOKEN={{hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout']}} sh -s - --docker --node-ip={{ansible_host}}
+  shell: curl -sfL https://get.k3s.io | K3S_URL=https://{{hostvars[groups['kube_master'][0]]['ansible_host'] }}:6443 K3S_TOKEN={{hostvars[groups['kube_master'][0]]['kube_master_join_cmd']['stdout']}} sh -s - --container-runtime-endpoint=unix:///var/run/cri-dockerd.sock --node-ip={{ansible_host}}

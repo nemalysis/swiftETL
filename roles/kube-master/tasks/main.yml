@@ -25,8 +25,19 @@
     path: /root/kube_manifests
     state: directory
 
+- name: Copy Provisioning Scripts
+  copy:
+    src: ./library/provisioning
+    dest: /root
+
+- name: make provision scripts executable
+  shell: chmod u+x /root/provisioning/*.sh
+  
+- name: install cri-dockerd
+  shell: /root/provisioning/install_cri_dockerd.sh
+
 - name: Install k3s
-  shell: curl -sfL https://get.k3s.io | sh -s - --docker --node-ip={{ansible_host}}
+  shell: curl -sfL https://get.k3s.io | sh -s - --container-runtime-endpoint=unix:///var/run/cri-dockerd.sock --node-ip={{ansible_host}}
 
 - name: Install Dashboard
   shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.5.0/aio/deploy/recommended.yaml
