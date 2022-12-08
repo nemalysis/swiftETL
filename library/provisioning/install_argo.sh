@@ -14,3 +14,7 @@ mv ./argo-linux-amd64 /usr/local/bin/argo
 
 # Test installation
 argo version
+
+# Install kubernetes site
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml

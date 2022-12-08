@@ -1,0 +1,12 @@
+---
+
+- hosts: kube_master
+  become: true
+  tasks:
+  - name: get internal namespace name
+    shell: kubectl get cm ns-lookup -o jsonpath='{.data.{{swiftETLNameSpace}}}'
+    register: InternalNamespace
+  - name: (abort expected) uninstall everything in namespace {{InternalNamespace.stdout}}
+    shell: kubectl delete ns {{InternalNamespace.stdout}} --force
+    async: 20
+    poll: 5

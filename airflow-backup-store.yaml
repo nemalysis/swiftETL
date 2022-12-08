@@ -1,0 +1,36 @@
+---
+
+- hosts: kube_master
+  become: true
+  tasks:
+    - set_fact: swiftETLNameSpace="dev"
+      when: swiftETLNameSpace is undefined
+    - set_fact: backup_path="/hostapp/backups/airflow"
+      when: backup_path is undefined
+    - name: Print Path where to store backup
+      debug:
+        msg: "Storing backup to {{backup_path}}"
+        verbosity: 0
+    - name: Create backup directory
+      shell: mkdir -p {{backup_path}}/secrets
+    - name: Get redis secret
+      shell: kubectl -n {{swiftETLNameSpace}} get secrets/airflow-postgresql -o jsonpath='{.data.postgresql-password}' | base64 -d
+      register: pg_password
+    - name: dump database
+      shell: kubectl -n {{swiftETLNameSpace}} exec airflow-postgresql-0 -- env PGPASSWORD="{{pg_password.stdout}}" pg_dumpall -U postgres -w -f /bitnami/postgresql/data/dump.sql
+    - name: Store redis secret
+      shell: kubectl -n {{swiftETLNameSpace}} get secrets/airflow-postgresql -o jsonpath='{.data.postgresql-password}' > {{backup_path}}/secrets/postgresql-password.txt
+    - name: Get Persistent Volume
+      shell: kubectl -n {{swiftETLNameSpace}} get PersistentVolumeClaim/data-airflow-postgresql-0 -o jsonpath='{.spec.volumeName}'
+      register: volume
+    - name: Print Volume
+      debug:
+        msg: Volume is {{volume.stdout}}
+    - name: Get Hostpath
+      shell: kubectl -n {{swiftETLNameSpace}} get PersistentVolume/{{volume.stdout}} -o jsonpath='{.spec.hostPath.path}'
+      register: hostpath
+    - name: Print hostpath
+      debug:
+        msg: hostpath is {{hostpath.stdout}}
+    - name: Copy Dump
+      shell: cp {{hostpath.stdout}}/data/dump.sql {{backup_path}}

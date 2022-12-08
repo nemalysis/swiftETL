@@ -1,0 +1,312 @@
+
+- name: Add Airflow repo
+  shell: helm repo add apache-airflow https://airflow.apache.org
+
+- name: Add twun.io repo
+  shell: helm repo add twun.io https://helm.twun.io
+
+- name: Add namespace to /hostapp/{{swiftETLNameSpace}}
+  shell: mkdir -p /hostapp/{{swiftETLNameSpace}}
+
+- name: Add scratch space to hostapp
+  shell: mkdir -p /hostapp/{{swiftETLNameSpace}}/scratch
+
+- name: Add secrets to hostapp
+  shell: mkdir -p /hostapp/{{swiftETLNameSpace}}/secrets
+
+- name: (DEPRECATED?) Adds dags folder to hostapp
+  shell: mkdir -p /hostapp/{{swiftETLNameSpace}}/airflow/dags
+
+- name: Add hello text to hostapp
+  copy:
+    dest: "/hostapp/{{swiftETLNameSpace}}/hello-from-hostapp.txt"
+    content: |
+      This was indeed loaded from /hostapp
+
+- name: Invent internal namespace
+  shell: python3 -c 'import secrets; print("{{swiftETLNameSpace}}-" + secrets.token_hex(8))'
+  register: InternalNamespace
+
+- name: Register internal namespace
+  shell: kubectl patch cm ns-lookup -p '{"data" {{ ":" }} {"{{swiftETLNameSpace}}" {{ ":" }} "{{InternalNamespace.stdout}}"}}'
+
+- name: Create Namepace Definition
+  copy:
+    dest: "/tmp/swiftETL-namespace-definition.yaml"
+    content: |
+      ---
+
+      # {{swiftETLNameSpace}} namespace
+
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: {{InternalNamespace.stdout}}
+      spec: {}
+      status: {}
+
+- name: Create Namespace
+  shell: kubectl apply -f /tmp/swiftETL-namespace-definition.yaml
+
+- name: Invent Airflow webserver secret
+  shell: python3 -c 'import secrets; print(secrets.token_hex(16))'
+  register: airflowWebserverSecret
+
+- name: Create Airflow webserver secret
+  debug:
+    msg: "{{ airflowWebserverSecret.stdout }}"
+
+- name: Create Airflow webserver secret definition
+  copy:
+    dest: "/tmp/swiftETL-airflow-webserver-secret.yaml"
+    content: |
+      ---
+
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: airflow-webserver-secret
+        namespace: {{InternalNamespace.stdout}}
+      type: Opaque
+      data:
+        webserver-secret-key: "{{ airflowWebserverSecret.stdout }}"
+
+- name: Create Airflow webserver secret
+  shell: kubectl apply -f /tmp/swiftETL-airflow-webserver-secret.yaml
+
+- name: Create Airflow ssh secret definition
+  copy:
+    dest: "/tmp/swiftETL-airflow-ssh-secret.yaml"
+    content: |
+      ---
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        namespace: {{InternalNamespace.stdout}}
+        name: airflow-ssh-secret
+      data:
+        # key needs to be gitSshKey
+        gitSshKey: {{gitSSHKey}}
+
+- name: Create Airflow ssh secret
+  shell: kubectl apply -f /tmp/swiftETL-airflow-ssh-secret.yaml
+
+- name: Create Airflow configuration
+  copy:
+    dest: "/tmp/airflow-config.yaml"
+    content: |
+      ---
+
+      webserverSecretKeySecretName: airflow-webserver-secret
+
+      airflowLocalSettings: |
+        from kubernetes.client.models import V1Pod
+        from kubernetes.client.models import V1Volume, V1VolumeMount, V1Container, V1HostPathVolumeSource
+
+        def pod_mutation_hook(pod: V1Pod):
+
+            if pod is None:
+                return
+
+            run_id = pod.metadata.labels['run_id']
+
+            pod.metadata.namespace = '{{InternalNamespace.stdout}}'
+
+            # Add hostapp volume
+            pod.spec.volumes.append(
+                V1Volume(
+                    name='hostapp',
+                    host_path=V1HostPathVolumeSource(
+                        path='/hostapp/{{swiftETLNameSpace}}/',
+                        type='Directory',
+                    )
+                )
+            )
+
+            # Add scratch volume
+            pod.spec.volumes.append(
+                V1Volume(
+                    name='scratch-volume',
+                    host_path=V1HostPathVolumeSource(
+                        path='/hostapp/{{swiftETLNameSpace}}/scratch',
+                        type='Directory',
+                    )
+                )
+            )
+
+            for c in pod.spec.containers:
+                c.volume_mounts.append(
+                    V1VolumeMount(
+                        mount_path='/hostapp',
+                        name='hostapp',
+                        sub_path='',
+                        read_only=False)
+                )
+                c.image_pull_policy = 'Always'
+                c.imagePullPolicy = 'Always'
+
+                if c.image.startswith('local-registry/'):
+                  c.image = c.image.replace('local-registry/', 'localhost:{{swiftETLDockerRegistryPort}}/')
+
+            # Add scratch space
+            for c in pod.spec.containers:
+                for vm in c.volume_mounts:
+                    if vm.sub_path is None:
+                        vm.sub_path = ""
+                    if vm.name == 'test-volume':
+                        vm.sub_path = '{}/{}'.format(run_id, vm.sub_path)
+                    if vm.name == 'scratch-volume':
+                        vm.sub_path = '{}/{}'.format(run_id, vm.sub_path)
+
+      webserver:
+        extraVolumes:
+        - name: hostapp
+          hostPath:
+            path: /hostapp/{{swiftETLNameSpace}}/airflow/dags
+            type: Directory
+        extraVolumeMounts:
+        - mountPath: /opt/airflow/dags_hostapp
+          name: hostapp
+
+      workers:
+        extraVolumes:
+        - name: hostapp
+          hostPath:
+            path: /hostapp/{{swiftETLNameSpace}}/airflow/dags
+            type: Directory
+        extraVolumeMounts:
+        - mountPath: /opt/airflow/dags_hostapp
+          name: hostapp
+
+      scheduler:
+        extraVolumes:
+        - name: hostapp
+          hostPath:
+            path: /hostapp/{{swiftETLNameSpace}}/airflow/dags
+            type: Directory
+        extraVolumeMounts:
+        - mountPath: /opt/airflow/dags_hostapp
+          name: hostapp
+
+      triggerer:
+        extraVolumes:
+        - name: hostapp
+          hostPath:
+            path: /hostapp/{{swiftETLNameSpace}}/airflow/dags
+            type: Directory
+        extraVolumeMounts:
+        - mountPath: /opt/airflow/dags_hostapp
+          name: hostapp
+
+      # Git sync
+      dags:
+        gitSync:
+          enabled: true
+          # git repo clone url
+          # ssh examples ssh://git@github.com/apache/airflow.git
+          # git@github.com:apache/airflow.git
+          # https example: https://github.com/apache/airflow.git
+          repo: {{swiftETLRepoURL}}
+          branch: {{swiftETLNameSpace}}
+          rev: HEAD
+          depth: 1
+          wait: 10
+          # the number of consecutive failures allowed before aborting
+          maxFailures: 0
+          # subpath within the repo where dags are located
+          # should be "" if dags are at repo root
+          subPath: "dags"
+          # if your repo needs a user name password
+          # you can load them to a k8s secret like the one below
+          #   ---
+          #   apiVersion: v1
+          #   kind: Secret
+          #   metadata:
+          #     name: git-credentials
+          #   data:
+          #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
+          #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
+          # and specify the name of the secret below
+          #
+          # credentialsSecret: git-credentials
+          #
+          #
+          # If you are using an ssh clone url, you can load
+          # the ssh private key to a k8s secret like the one below
+          #   ---
+          #   apiVersion: v1
+          #   kind: Secret
+          #   metadata:
+          #     name: airflow-ssh-secret
+          #   data:
+          #     # key needs to be gitSshKey
+          #     gitSshKey: <base64_encoded_data>
+          # and specify the name of the secret below
+          # sshKeySecret: airflow-ssh-secret
+          #
+          sshKeySecret: airflow-ssh-secret
+          knownHosts: |
+              {{gitKnownHostsOne}}
+              {{gitKnownHostsTwo}}
+
+- name: Install airflow
+  shell: helm install -f /tmp/airflow-config.yaml airflow-{{InternalNamespace.stdout}} apache-airflow/airflow --version 1.6.0 -n {{InternalNamespace.stdout}}
+
+- name: Install docker registry
+  shell: helm upgrade --install docker-registry-{{InternalNamespace.stdout}} twun.io/docker-registry -n {{InternalNamespace.stdout}}
+
+- name: Define Nodeport for airflow publish
+  copy:
+    dest: "/tmp/swiftETL-export-airflow-port.yaml"
+    content: |
+      ---
+
+      # expose Airflow
+
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: airflow-publish
+        namespace: {{InternalNamespace.stdout}}
+      spec:
+        type: NodePort
+        selector:
+          component: webserver
+          release: airflow-{{InternalNamespace.stdout}}
+          tier: airflow
+        ports:
+            # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+          - name: http
+            protocol: TCP
+            port: 8080
+            nodePort: {{swiftETLAirflowPort}}
+
+- name: Publish Airflow
+  shell: kubectl apply -f /tmp/swiftETL-export-airflow-port.yaml
+
+- name: Define Nodeport for Docker Registry
+  copy:
+    dest: "/tmp/swiftETL-export-docker-registry-port.yaml"
+    content: |
+      ---
+
+      # expose Airflow
+
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: docker-registry-publish
+        namespace: {{InternalNamespace.stdout}}
+      spec:
+        type: NodePort
+        selector:
+          release: docker-registry-{{InternalNamespace.stdout}}
+        ports:
+            # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+          - name: http
+            protocol: TCP
+            port: 5000
+            nodePort: {{swiftETLDockerRegistryPort}}
+
+- name: Publish Docker Registry
+  shell: kubectl apply -f /tmp/swiftETL-export-docker-registry-port.yaml

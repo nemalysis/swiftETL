@@ -39,6 +39,17 @@
       shell: /root/provisioning/install_argo.sh
     - name: open port for kubernetes-dashboard
       shell: /root/provisioning/port_dashboard.sh
+    - name: Some Manual changes need to be done for server flags
+      debug:
+        msg: |
+          Add the following lines to /etc/systemd/system/k3s.service
+                  '--kube-apiserver-arg=enable-admission-plugins=NodeRestriction,PodNodeSelector' \
+                  '--kube-proxy-arg=nodeport-addresses=192.168.0.0/16,127.0.0.0/8' \
+                  '--kubelet-arg=feature-gates=NodeSwap=true' \
+                  '--kubelet-arg=fail-swap-on=false' \
+        verbosity: 0
+    - name: Create ConfigMap for internal Namespace Names
+      shell: kubectl create cm ns-lookup
 
 - hosts: kube_slaves
   become: true

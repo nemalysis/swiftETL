@@ -1,0 +1,13 @@
+---
+
+- hosts: kube_master
+  become: true
+  roles: 
+    - { role: swiftETL }
+
+  tasks:
+  - name: Some Manual changes need to be done for server flags
+    debug:
+      msg: |
+        Add necessary secrets to /hostapp/{{swiftETLNameSpace}}/secrets
+      verbosity: 0
