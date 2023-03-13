@@ -158,6 +158,9 @@
                     if vm.name == 'scratch-volume':
                         vm.sub_path = '{}/{}'.format(run_id, vm.sub_path)
 
+      images:
+        migrationsWaitTimeout: 600
+
       webserver:
         extraVolumes:
         - name: hostapp
@@ -251,6 +254,9 @@
           knownHosts: |
               {{gitKnownHostsOne}}
               {{gitKnownHostsTwo}}
+
+- name: Disable faulty api service
+  shell: kubectl delete apiservice v1beta1.metrics.k8s.io --ignore-not-found=true
 
 - name: Install airflow
   shell: helm install -f /tmp/airflow-config.yaml airflow-{{InternalNamespace.stdout}} apache-airflow/airflow --version 1.6.0 -n {{InternalNamespace.stdout}}
