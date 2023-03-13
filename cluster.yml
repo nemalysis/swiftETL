@@ -35,8 +35,6 @@
       shell: chmod u+x /root/provisioning/*.sh
     - name: install helm
       shell: /root/provisioning/install_helm.sh
-    - name: install argo
-      shell: /root/provisioning/install_argo.sh
     - name: open port for kubernetes-dashboard
       shell: /root/provisioning/port_dashboard.sh
     - name: Some Manual changes need to be done for server flags
