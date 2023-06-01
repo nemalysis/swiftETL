@@ -37,7 +37,7 @@
   shell: /root/provisioning/install_cri_dockerd.sh
 
 - name: Install k3s
-  shell: curl -sfL https://get.k3s.io | sh -s - --container-runtime-endpoint=unix:///var/run/cri-dockerd.sock --node-ip={{ansible_host}} --log=/dev/null
+  shell: curl -sfL https://get.k3s.io | sh -s - --container-runtime-endpoint=unix:///var/run/cri-dockerd.sock --node-ip={{ansible_host}} --log=/var/log/k3s.log
 
 - name: Wait
   shell: sleep 60
