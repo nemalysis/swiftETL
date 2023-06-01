@@ -36,11 +36,11 @@
 - name: install cri-dockerd
   shell: /root/provisioning/install_cri_dockerd.sh
 
-- name: Create Datastore for k3s
-  shell: docker run --restart=always --name k3s-datastore-postgres -p 127.0.0.1:5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:15.2
-
 - name: Install k3s
-  shell: curl -sfL https://get.k3s.io | sh -s - --datastore-endpoint=postgres://postgres:postgres@127.0.0.1:5432/kubernetes?sslmode=disable --container-runtime-endpoint=unix:///var/run/cri-dockerd.sock --node-ip={{ansible_host}}
+  shell: curl -sfL https://get.k3s.io | sh -s - --node-ip={{ansible_host}} --log=/dev/null
+
+- name: Wait
+  shell: sleep 60
 
 - name: Install Dashboard
   shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.5.0/aio/deploy/recommended.yaml

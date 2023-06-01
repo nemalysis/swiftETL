@@ -159,9 +159,14 @@
                         vm.sub_path = '{}/{}'.format(run_id, vm.sub_path)
 
       images:
-        migrationsWaitTimeout: 600
+        migrationsWaitTimeout: 1200
 
       webserver:
+        livenessProbe:
+          timeoutSeconds: 300
+          failureThreshold: 20
+        readinessProbe:
+          timeoutSeconds: 300
         extraVolumes:
         - name: hostapp
           hostPath:
@@ -182,6 +187,9 @@
           name: hostapp
 
       scheduler:
+        livenessProbe:
+          timeoutSeconds: 300
+          failureThreshold: 20
         extraVolumes:
         - name: hostapp
           hostPath:
@@ -192,6 +200,9 @@
           name: hostapp
 
       triggerer:
+        livenessProbe:
+          timeoutSeconds: 300
+          failureThreshold: 20
         extraVolumes:
         - name: hostapp
           hostPath:
