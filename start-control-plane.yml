@@ -8,17 +8,17 @@
     - name: Create and print token
       shell: '{% raw %} kubectl -n kubernetes-dashboard describe secret admin-user-token | grep ^token {% endraw %}'
       register: token
-    - name: Start Proxy
-      shell: '{% raw %} kubectl proxy & {% endraw %}'
     - name: Print Token to user
       debug:
         msg: "{{token.stdout}}"
         verbosity: 0
+    - name: Start Proxy
+      shell: '{% raw %} kubectl proxy & {% endraw %}'
     - name: Print Browswer Path to user
       debug:
-        msg: "visit http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
+        msg: "visit http://localhost:30100/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
         verbosity: 0
     - name: Run the following Command before
       debug:
-        msg: ssh -L 8001:localhost:8001 root@{{ansible_host}} 'kubectl proxy'
+        msg: ssh -L 30100:localhost:30100 root@{{ansible_host}} 'kubectl proxy'
         verbosity: 0
