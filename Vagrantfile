@@ -16,8 +16,8 @@ Vagrant.configure("2") do |config|
   config.vm.hostname = "testMasterNode"
 
   config.vm.provider "virtualbox" do |v|
-    v.memory = 2048
-    v.cpus = 2
+    v.memory = 8192
+    v.cpus = 4
   end
 
   # Disable automatic box update checking. If you disable this, then
