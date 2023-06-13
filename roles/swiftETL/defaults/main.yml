@@ -3,6 +3,6 @@ swiftETLNameSpace: dev
 swiftETLAirflowPort: 30300
 swiftETLDockerRegistryPort: 30500
 swiftETLRepoURL: "https://github.com/apache/airflow.git"
-gitSSHKey: SecretGitSSHKey
+gitSSHKey: SecretGitSSHKey=
 gitKnownHostsOne: SecretGitKnownHostsOne
 gitKnownHostsTwo: SecretGitKnownHostsTwo
